@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  chatterbox-tts:
+    build: .
+    container_name: chatterbox-tts-processor
+    volumes:
+      - ./output:/workspace/output
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    stdin_open: true
+    tty: true
