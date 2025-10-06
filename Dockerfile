@@ -32,10 +32,12 @@ RUN mkdir -p /workspace/models /workspace/audio /workspace/output
 
 COPY process_text.py /workspace/
 COPY process_text_enhanced.py /workspace/
+COPY process_text_multi_samples.py /workspace/
 COPY text_input.txt /workspace/
 COPY entrypoint.sh /workspace/
 COPY entrypoint_enhanced.sh /workspace/
-RUN chmod +x /workspace/entrypoint.sh /workspace/entrypoint_enhanced.sh
+COPY entrypoint_multi_samples.sh /workspace/
+RUN chmod +x /workspace/entrypoint.sh /workspace/entrypoint_enhanced.sh /workspace/entrypoint_multi_samples.sh
 
 EXPOSE 7860 8888
 ENTRYPOINT ["/workspace/entrypoint.sh"]

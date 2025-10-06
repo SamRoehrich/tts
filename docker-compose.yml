@@ -17,3 +17,15 @@ services:
               capabilities: [gpu]
     stdin_open: true
     tty: true
+
+  chatterbox-tts-multi:
+    build: .
+    container_name: chatterbox-tts-multi-processor
+    volumes:
+      - ./output:/workspace/output
+      - ./audio_samples:/workspace/audio_samples
+      - ./text_input.txt:/workspace/text_input.txt
+      - ./process_text_multi_samples.py:/workspace/process_text_multi_samples.py
+    entrypoint: ["/workspace/entrypoint_multi_samples.sh"]
+    stdin_open: true
+    tty: true
