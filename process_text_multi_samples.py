@@ -149,64 +149,104 @@ def process_with_audio_sample(model, sentences, sample_path, sample_name):
         return False
 
 def process_text_with_multiple_samples():
-    """Main function to process text with multiple audio samples"""
+    """Main function to process text with multiple audio samples.
+    Each run stores results in a unique timestamped directory: /workspace/output/run_<UTC_TS>/sample_name
+    Also maintains /workspace/output/latest -> that run (symlink).
+    """
+    import datetime
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
-    
+
+    # Create a unique run directory
+    run_id = datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    base_output_dir = f"/workspace/output/run_{run_id}"
+    os.makedirs(base_output_dir, exist_ok=True)
+    print(f"Run output directory: {base_output_dir}")
+
+    # Update symlink 'latest'
+    latest_link = "/workspace/output/latest"
+    try:
+        if os.path.islink(latest_link) or os.path.exists(latest_link):
+            os.unlink(latest_link)
+        os.symlink(base_output_dir, latest_link)
+        print(f"Updated symlink: {latest_link} -> {base_output_dir}")
+    except Exception as e:
+        print(f"Could not update latest symlink: {e}")
+
     # Load the model
     print("Loading Chatterbox TTS model...")
     model = ChatterboxTTS.from_pretrained(device=device)
-    
+
     # Get all audio samples
     audio_samples = get_audio_samples()
     if not audio_samples:
         print("No audio samples found in /workspace/audio_samples/")
         print("Please add audio files to the audio_samples directory and try again.")
         return
-    
+
     print(f"Found {len(audio_samples)} audio samples:")
     for sample in audio_samples:
         print(f"  - {Path(sample).name}")
-    
+
     # Read the input text
     text_file = '/workspace/text_input.txt'
     if not os.path.exists(text_file):
         print(f"Text input file not found: {text_file}")
         return
-    
+
     with open(text_file, 'r', encoding='utf-8') as f:
         full_text = f.read()
-    
+
     print(f"Processing text of {len(full_text)} characters...")
-    
+
     # Clean and split the text
     sentences = clean_text_for_tts(full_text)
     print(f"Split into {len(sentences)} sentences")
-    
-    # Create main output directory
-    os.makedirs("/workspace/output", exist_ok=True)
-    
+
     # Process text with each audio sample
     successful_samples = 0
     for sample_path in audio_samples:
         sample_name = Path(sample_path).stem
         try:
+            # Patch process_with_audio_sample to accept base directory by temporarily overriding output_dir creation
+            # Simpler: replicate call with monkey patched global variable? We just set environment var.
+            # We'll adjust by temporarily changing working output inside function via env var.
+            # Instead, derive per-sample dir and create before call, then inside function will still use /workspace/output/<sample_name>
+            # To avoid collision with older runs, pre-create symlink path to new location.
+            target_dir = f"{base_output_dir}/{sample_name}"
+            os.makedirs(target_dir, exist_ok=True)
+            legacy_path = f"/workspace/output/{sample_name}"
+            # If legacy path exists and is not symlink to target_dir, remove/rename
+            if os.path.exists(legacy_path) and not os.path.islink(legacy_path):
+                try:
+                    # Move old directory out of the way
+                    backup_dir = f"{legacy_path}_prev_{run_id}"
+                    os.rename(legacy_path, backup_dir)
+                except Exception:
+                    pass
+            try:
+                if os.path.islink(legacy_path) or os.path.exists(legacy_path):
+                    os.unlink(legacy_path)
+                os.symlink(target_dir, legacy_path)
+            except Exception as e:
+                print(f"Warning: could not set symlink for {sample_name}: {e}")
             if process_with_audio_sample(model, sentences, sample_path, sample_name):
                 successful_samples += 1
         except Exception as e:
             print(f"Failed to process sample {sample_name}: {e}")
             continue
-    
+
     print(f"\n{'='*60}")
     print(f"PROCESSING COMPLETE")
     print(f"{'='*60}")
     print(f"Successfully processed {successful_samples}/{len(audio_samples)} audio samples")
-    print(f"Output files are organized in /workspace/output/ by sample name")
-    
+    print(f"Run directory: {base_output_dir}")
+    print("'latest' symlink points to most recent run.")
+
     # List all generated files
     print("\nGenerated output structure:")
     import subprocess
-    result = subprocess.run(['find', '/workspace/output', '-name', '*.wav'], capture_output=True, text=True)
+    result = subprocess.run(['find', base_output_dir, '-name', '*.wav'], capture_output=True, text=True)
     if result.stdout:
         for line in sorted(result.stdout.strip().split('\n')):
             print(f"  {line}")

@@ -37,7 +37,9 @@ COPY text_input.txt /workspace/
 COPY entrypoint.sh /workspace/
 COPY entrypoint_enhanced.sh /workspace/
 COPY entrypoint_multi_samples.sh /workspace/
-RUN chmod +x /workspace/entrypoint.sh /workspace/entrypoint_enhanced.sh /workspace/entrypoint_multi_samples.sh
+COPY tts_ui.py /workspace/
+COPY entrypoint_ui.sh /workspace/
+RUN chmod +x /workspace/entrypoint.sh /workspace/entrypoint_enhanced.sh /workspace/entrypoint_multi_samples.sh /workspace/entrypoint_ui.sh
 
 EXPOSE 7860 8888
 ENTRYPOINT ["/workspace/entrypoint.sh"]

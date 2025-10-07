@@ -29,3 +29,14 @@ services:
     entrypoint: ["/workspace/entrypoint_multi_samples.sh"]
     stdin_open: true
     tty: true
+
+  chatterbox-tts-ui:
+    build: .
+    container_name: chatterbox-tts-ui
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./output:/workspace/output
+    entrypoint: ["/workspace/entrypoint_ui.sh"]
+    stdin_open: true
+    tty: true
